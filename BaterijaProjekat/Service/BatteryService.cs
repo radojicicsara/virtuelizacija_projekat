@@ -18,9 +18,25 @@ namespace Service
 
         public void StartSession(EisMeta meta)
         {
-            _lastRowIndex = -1; // Resetujemo brojač na početku svake sesije
+            _lastRowIndex = -1; // Resetujemo brojač
             Console.WriteLine($"[SERVER] Započeta sesija za: {meta.BatteryId}, Test: {meta.TestId}");
-            // Ovde ćemo kasnije dodati pravljenje foldera
+
+            // 1. PRAVLJENJE PUTANJE (Zadatak 1 i 5)
+            // Pravimo putanju tipa: Data\B01\Test_1\50
+            string folderPath = Path.Combine("Data", meta.BatteryId, meta.TestId, meta.SoC.ToString());
+
+            // 2. KREIRANJE FOLDERA 
+            Directory.CreateDirectory(folderPath);
+
+            // 3. OTVARANJE FAJLA ZA PISANJE
+            string filePath = Path.Combine(folderPath, "merenja.csv");
+
+            // Inicijalizujemo StreamWriter - ovo je tvoj _writer koji je bio null
+            _writer = new StreamWriter(filePath, append: false);
+
+            // 4. UPISIVANJE ZAGLAVLJA (Header)
+            _writer.WriteLine("RowIndex,FrequencyHz,R_ohm,X_ohm,T_degC,Range_ohm,TimestampLocal");
+            _writer.Flush();
         }
 
         public void PushSample(EisSample sample)
@@ -49,7 +65,7 @@ namespace Service
             // Ako je sve u redu, ažuriramo poslednji indeks i pišemo u fajl
             _lastRowIndex = sample.RowIndex;
 
-            // Ako je sve OK, upiši u fajl
+       
             if (_writer != null)
             {
                 _writer.WriteLine($"{sample.RowIndex},{sample.FrequencyHz},{sample.R_ohm},{sample.X_ohm},{sample.T_degC},{sample.Range_ohm},{sample.TimestampLocal}");
