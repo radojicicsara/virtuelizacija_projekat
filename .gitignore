@@ -416,3 +416,7 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Custom data folder for Battery Project
+Service/bin/Data/
+Client/bin/Data/
