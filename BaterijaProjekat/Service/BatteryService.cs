@@ -14,27 +14,40 @@ namespace Service
     {
 
         private StreamWriter _writer;
+        private int _lastRowIndex = -1; // Dodajemo ovo da pratimo monotoni rast
 
         public void StartSession(EisMeta meta)
         {
+            _lastRowIndex = -1; // Resetujemo brojač na početku svake sesije
             Console.WriteLine($"[SERVER] Započeta sesija za: {meta.BatteryId}, Test: {meta.TestId}");
             // Ovde ćemo kasnije dodati pravljenje foldera
         }
 
         public void PushSample(EisSample sample)
         {
-            // Zadatak 3: Validacija podataka
-            if (sample.FrequencyHz <= 0)
+            // 1. Provera prisutnih polja (Zadatak 3)
+            if (sample == null)
             {
-                var fault = new ValidationFault { Message = "Frekvencija mora biti veća od 0!" };
+                var fault = new DataFormatFault { Message = "Podaci nisu poslati (null)." };
+                throw new FaultException<DataFormatFault>(fault);
+            }
+
+            // 2. Provera monotonog rasta RowIndex-a
+            if (sample.RowIndex <= _lastRowIndex)
+            {
+                var fault = new ValidationFault { Message = $"RowIndex mora monotono rasti. Poslednji je bio {_lastRowIndex}, a stigao je {sample.RowIndex}." };
                 throw new FaultException<ValidationFault>(fault);
             }
 
-            if (sample.R_ohm <= 0)
+            // 3. Ostale validacije iz zadatka
+            if (sample.FrequencyHz <= 0 || sample.R_ohm <= 0)
             {
-                var fault = new ValidationFault { Message = "Otpornost (R_ohm) mora biti realna pozitivna vrednost!" };
+                var fault = new ValidationFault { Message = "Frekvencija i otpor moraju biti veći od 0." };
                 throw new FaultException<ValidationFault>(fault);
             }
+
+            // Ako je sve u redu, ažuriramo poslednji indeks i pišemo u fajl
+            _lastRowIndex = sample.RowIndex;
 
             // Ako je sve OK, upiši u fajl
             if (_writer != null)
