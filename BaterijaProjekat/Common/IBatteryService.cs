@@ -13,7 +13,10 @@ namespace Common
         [OperationContract]
         void StartSession(EisMeta meta);
 
+
         [OperationContract]
+        [FaultContract(typeof(DataFormatFault))]
+        [FaultContract(typeof(ValidationFault))]
         void PushSample(EisSample sample);
 
         [OperationContract]

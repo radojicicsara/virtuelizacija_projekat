@@ -9,12 +9,13 @@ using System.IO;
 
 namespace Service
 {
-    // Ključni deo: ": IBatteryService" znači da ova klasa realizuje tvoj ugovor
+ 
     public class BatteryService : IBatteryService, IDisposable
     {
 
         private StreamWriter _writer;
         private int _lastRowIndex = -1; // Dodajemo ovo da pratimo monotoni rast
+        private bool disposed = false;
 
         public void StartSession(EisMeta meta)
         {
@@ -80,13 +81,28 @@ namespace Service
             Console.WriteLine("[SERVER] Sesija uspešno završena.");
         }
 
+        ~BatteryService()
+        {
+            Dispose(false);
+        }
+
         public void Dispose()
         {
-            if (_writer != null)
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposed)
             {
-                _writer.Close();
-                _writer.Dispose();
-                _writer = null;
+                if (disposing && _writer != null)
+                {
+                    _writer.Close();
+                    _writer.Dispose();
+                    _writer = null;
+                }
+                disposed = true;
             }
         }
 
