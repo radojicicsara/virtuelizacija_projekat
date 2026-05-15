@@ -70,7 +70,14 @@ namespace Client
                         }
                         finally
                         {
-                            factory.Close();
+                            try
+                            {
+                                factory.Close();
+                            }
+                            catch
+                            {
+                                factory.Abort();
+                            }
                         }
                     }
                 }

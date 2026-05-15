@@ -7,7 +7,7 @@ using System.ServiceModel;
 
 namespace Common
 {
-    [ServiceContract] // Ovo kaže WCF-u da je ovo ugovor za servis
+    [ServiceContract] 
     public interface IBatteryService
     {
         [OperationContract]

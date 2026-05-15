@@ -9,30 +9,29 @@ using System.IO;
 
 namespace Service
 {
- 
     public class BatteryService : IBatteryService, IDisposable
     {
-
         private StreamWriter _writer;
-        private int _lastRowIndex = -1; // Dodajemo ovo da pratimo monotoni rast
+        private int _lastRowIndex = -1;
         private bool disposed = false;
+        private string _currentFileName;
+        private static bool _simulacijaUradjena = false;
 
         public void StartSession(EisMeta meta)
         {
-            _lastRowIndex = -1; // Resetujemo brojač
+            _currentFileName = meta.FileName;
+            _lastRowIndex = -1;
+            disposed = false; // resetujemo za novu sesiju
             Console.WriteLine($"[SERVER] Započeta sesija za: {meta.BatteryId}, Test: {meta.TestId}");
 
             // 1. PRAVLJENJE PUTANJE (Zadatak 1 i 5)
-            // Pravimo putanju tipa: Data\B01\Test_1\50
             string folderPath = Path.Combine("Data", meta.BatteryId, meta.TestId, meta.SoC.ToString());
 
-            // 2. KREIRANJE FOLDERA 
+            // 2. KREIRANJE FOLDERA
             Directory.CreateDirectory(folderPath);
 
             // 3. OTVARANJE FAJLA ZA PISANJE
             string filePath = Path.Combine(folderPath, "merenja.csv");
-
-            // Inicijalizujemo StreamWriter - ovo je tvoj _writer koji je bio null
             _writer = new StreamWriter(filePath, append: false);
 
             // 4. UPISIVANJE ZAGLAVLJA (Header)
@@ -42,42 +41,66 @@ namespace Service
 
         public void PushSample(EisSample sample)
         {
-            // 1. Provera prisutnih polja (Zadatak 3)
-            if (sample == null)
+            try
             {
-                var fault = new DataFormatFault { Message = "Podaci nisu poslati (null)." };
-                throw new FaultException<DataFormatFault>(fault);
+                // 1. Provera prisutnih polja (Zadatak 3)
+                if (sample == null)
+                {
+                    var fault = new DataFormatFault { Message = "Podaci nisu poslati (null)." };
+                    throw new FaultException<DataFormatFault>(fault);
+                }
+                // 2. Provera monotonog rasta RowIndex-a
+                if (sample.RowIndex <= _lastRowIndex)
+                {
+                    var fault = new ValidationFault { Message = $"RowIndex mora monotono rasti. Poslednji je bio {_lastRowIndex}, a stigao je {sample.RowIndex}." };
+                    throw new FaultException<ValidationFault>(fault);
+                }
+                // 3. Ostale validacije iz zadatka
+                if (sample.FrequencyHz <= 0 || sample.R_ohm <= 0)
+                {
+                    var fault = new ValidationFault { Message = "Frekvencija i otpor moraju biti veći od 0." };
+                    throw new FaultException<ValidationFault>(fault);
+                }
+
+                // 4. Simulacija prekida veze usred prenosa (Zadatak 4)
+                if (sample.RowIndex == 5 && !_simulacijaUradjena)
+                {
+                    _simulacijaUradjena = true;
+                    Console.WriteLine("[OPORAVAK] Prekinut prenos: Simuliran prekid veze usred prenosa!");
+                    Console.WriteLine("[OPORAVAK] Resursi su ipak zatvoreni zahvaljujući using/Dispose.");
+                    Dispose();
+                    return;
+                }
+
+                // Ako je sve u redu, ažuriramo poslednji indeks i pišemo u fajl
+                _lastRowIndex = sample.RowIndex;
+
+                if (_writer != null)
+                {
+                    _writer.WriteLine($"{sample.RowIndex},{sample.FrequencyHz},{sample.R_ohm},{sample.X_ohm},{sample.T_degC},{sample.Range_ohm},{sample.TimestampLocal}");
+                    _writer.Flush();
+                    //Console.WriteLine($"[SERVER] Primljen uzorak #{sample.RowIndex} | F={sample.FrequencyHz}Hz | R={sample.R_ohm}Ω");
+                }
             }
-
-            // 2. Provera monotonog rasta RowIndex-a
-            if (sample.RowIndex <= _lastRowIndex)
+            catch (FaultException)
             {
-                var fault = new ValidationFault { Message = $"RowIndex mora monotono rasti. Poslednji je bio {_lastRowIndex}, a stigao je {sample.RowIndex}." };
-                throw new FaultException<ValidationFault>(fault);
+                // FaultException prosleđujemo klijentu, ne obrađujemo ovde
+                throw;
             }
-
-            // 3. Ostale validacije iz zadatka
-            if (sample.FrequencyHz <= 0 || sample.R_ohm <= 0)
+            catch (Exception ex)
             {
-                var fault = new ValidationFault { Message = "Frekvencija i otpor moraju biti veći od 0." };
-                throw new FaultException<ValidationFault>(fault);
-            }
-
-            // Ako je sve u redu, ažuriramo poslednji indeks i pišemo u fajl
-            _lastRowIndex = sample.RowIndex;
-
-       
-            if (_writer != null)
-            {
-                _writer.WriteLine($"{sample.RowIndex},{sample.FrequencyHz},{sample.R_ohm},{sample.X_ohm},{sample.T_degC},{sample.Range_ohm},{sample.TimestampLocal}");
-                _writer.Flush();
+                // 4. Oporavak u slučaju prekida veze (Zadatak 4)
+                Console.WriteLine($"[OPORAVAK] Prekinut prenos: {ex.Message}");
+                Console.WriteLine($"[OPORAVAK] Resursi su ipak zatvoreni zahvaljujući using/Dispose.");
+                Dispose();
+                throw;
             }
         }
 
-      
         public void EndSession()
         {
-            Dispose(); // Zatvaramo resurse kada klijent završi
+            Console.WriteLine($"[Dispose] Resursi zatvoreni za: {_currentFileName}");
+            Dispose();
             Console.WriteLine("[SERVER] Sesija uspešno završena.");
         }
 
@@ -105,6 +128,5 @@ namespace Service
                 disposed = true;
             }
         }
-
     }
 }
