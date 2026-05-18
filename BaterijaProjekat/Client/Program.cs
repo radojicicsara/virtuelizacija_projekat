@@ -3,6 +3,8 @@ using System;
 using System.Globalization;
 using System.IO;
 using System.ServiceModel;
+using System.Configuration;
+using System.Threading;
 
 namespace Client
 {
@@ -10,7 +12,9 @@ namespace Client
     {
         static void Main(string[] args)
         {
-            string datasetRoot = @"C:\Users\sara\Documents\virtuelizacija\Dataset";
+            string datasetRoot = ConfigurationManager.AppSettings["DatasetPath"];
+
+            System.Threading.Thread.Sleep(1000);
 
             foreach (string batteryFolder in Directory.GetDirectories(datasetRoot))
             {
@@ -28,7 +32,6 @@ namespace Client
 
                     foreach (string csvFile in Directory.GetFiles(hiokiFolder, "*.csv"))
                     {
-                        // Kreiramo novi proxy za svaki fajl
                         ChannelFactory<IBatteryService> factory = new ChannelFactory<IBatteryService>("BatteryService");
                         IBatteryService proxy = factory.CreateChannel();
 
@@ -51,9 +54,11 @@ namespace Client
 
                         try
                         {
-                            proxy.StartSession(meta);
+                            string ack1 = proxy.StartSession(meta);
+                            Console.WriteLine("[ACK] Sesija zapoceta.");
                             SendSamples(proxy, csvFile);
-                            proxy.EndSession();
+                            string ack2 = proxy.EndSession();
+                            Console.WriteLine("[ACK] Sesija zavrsena.");
                             Console.WriteLine($"[KLIJENT] Završeno: {batteryId} {testId} SoC={soc}%");
                         }
                         catch (FaultException<DataFormatFault> e)
@@ -70,14 +75,8 @@ namespace Client
                         }
                         finally
                         {
-                            try
-                            {
-                                factory.Close();
-                            }
-                            catch
-                            {
-                                factory.Abort();
-                            }
+                            try { factory.Close(); }
+                            catch { factory.Abort(); }
                         }
                     }
                 }
@@ -94,18 +93,15 @@ namespace Client
 
             using (StreamReader reader = new StreamReader(csvFile))
             {
-                // Preskačemo header red
                 string headerLine = reader.ReadLine();
 
                 string line;
                 while ((line = reader.ReadLine()) != null)
                 {
-                    // Preskačemo prazne redove
                     if (string.IsNullOrWhiteSpace(line)) continue;
 
                     string[] parts = line.Split(',');
 
-                    // CSV ima 6 kolona: Frequency, R, X, V, T, Range
                     if (parts.Length < 6)
                     {
                         LogInvalidFile(csvFile, $"Red {rowIndex} ima manje od 6 kolona: {line}");
@@ -113,7 +109,6 @@ namespace Client
                         continue;
                     }
 
-                    // Parsiramo sa InvariantCulture (tačka kao decimalni separator)
                     double freq = 0, r = 0, x = 0, t = 0, range = 0;
                     bool ok =
                         double.TryParse(parts[0].Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out freq) &
@@ -129,7 +124,6 @@ namespace Client
                         continue;
                     }
 
-                    // Šaljemo samo 39 redova
                     if (sentRows >= 39) break;
 
                     EisSample sample = new EisSample
@@ -152,14 +146,11 @@ namespace Client
 
         static int ParseSoC(string fileNameWithoutExtension)
         {
-            // Format: Hk_IFR14500_SoC_100_03-07-2023_11-46
-            // Tražimo deo posle "SoC_"
             string marker = "SoC_";
             int idx = fileNameWithoutExtension.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
             if (idx < 0) return -1;
 
             string afterMarker = fileNameWithoutExtension.Substring(idx + marker.Length);
-            // Uzimamo sve do sledeće "_"
             string socStr = afterMarker.Split('_')[0];
 
             if (int.TryParse(socStr, out int soc))

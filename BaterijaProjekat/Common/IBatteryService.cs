@@ -11,7 +11,7 @@ namespace Common
     public interface IBatteryService
     {
         [OperationContract]
-        void StartSession(EisMeta meta);
+        string StartSession(EisMeta meta);
 
 
         [OperationContract]
@@ -20,6 +20,6 @@ namespace Common
         void PushSample(EisSample sample);
 
         [OperationContract]
-        void EndSession();
+        string EndSession();
     }
 }
