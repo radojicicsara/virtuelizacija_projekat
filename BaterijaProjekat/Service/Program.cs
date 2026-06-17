@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+using System;
 using System.ServiceModel;
-using System.Text;
-using System.Threading.Tasks;
+using Common;
 
 namespace Service
 {
@@ -11,6 +8,11 @@ namespace Service
     {
         static void Main(string[] args)
         {
+            BatteryService.OnTransferStarted += LogNotification;
+            BatteryService.OnSampleReceived += LogNotification;
+            BatteryService.OnTransferCompleted += LogNotification;
+            BatteryService.OnWarningRaised += LogNotification;
+
             using (ServiceHost host = new ServiceHost(typeof(BatteryService)))
             {
                 host.Open();
@@ -18,6 +20,11 @@ namespace Service
                 Console.WriteLine("Pritisnite [Enter] za zaustavljanje.");
                 Console.ReadLine();
             }
+        }
+
+        private static void LogNotification(TransferNotification notification)
+        {
+            Console.WriteLine($"[{notification.EventType}] {notification.Message}");
         }
     }
 }

@@ -1,18 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.ServiceModel;
 
 namespace Common
 {
-    [ServiceContract] 
+    [ServiceContract(CallbackContract = typeof(IBatteryServiceCallback), SessionMode = SessionMode.Required)]
     public interface IBatteryService
     {
         [OperationContract]
         string StartSession(EisMeta meta);
-
 
         [OperationContract]
         [FaultContract(typeof(DataFormatFault))]

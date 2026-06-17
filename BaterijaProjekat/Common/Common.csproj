@@ -47,7 +47,9 @@
     <Compile Include="EisMeta.cs" />
     <Compile Include="EisSample.cs" />
     <Compile Include="IBatteryService.cs" />
+    <Compile Include="IBatteryServiceCallback.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="TransferNotification.cs" />
     <Compile Include="ValidationFault.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
