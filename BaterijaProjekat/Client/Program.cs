@@ -14,7 +14,9 @@ namespace Client
 
         static void Main(string[] args)
         {
-            string datasetRoot = ConfigurationManager.AppSettings["DatasetPath"];
+            DirectoryInfo clientDir = new DirectoryInfo(AppDomain.CurrentDomain.BaseDirectory).Parent.Parent;
+            string fileFolder = Path.Combine(clientDir.FullName, "file");
+            string datasetRoot = Directory.GetDirectories(fileFolder)[0];
             int sendDelayMs = int.Parse(ConfigurationManager.AppSettings["SendDelayMs"]);
 
             foreach (string batteryFolder in Directory.GetDirectories(datasetRoot))
